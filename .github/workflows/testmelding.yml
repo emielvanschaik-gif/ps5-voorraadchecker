@@ -1,0 +1,23 @@
+name: Eenmalige testmelding
+on:
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  testmelding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = `<!-- ps5-watch:manual-test:${context.runId} -->`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              ...context.repo, state: 'all', per_page: 100
+            });
+            if (issues.some(issue => issue.user?.login === 'github-actions[bot]' && issue.body?.startsWith(marker))) return;
+            await github.rest.issues.create({
+              ...context.repo,
+              title: '🔔 Testmelding PS5 voorraadchecker',
+              body: `${marker}\nDit is de eenmalige testmelding die je hebt aangevraagd. Dit is geen voorraadmelding.\n\n[Open de PS5 Pro-productpagina](https://direct.playstation.com/nl-nl/buy-consoles/playstation5-pro-console-2-tb)\n\nDe gewone checker blijft elke vijf minuten controleren en stuurt maximaal één voorraadmelding per Nederlandse kalenderdag.`
+            });
