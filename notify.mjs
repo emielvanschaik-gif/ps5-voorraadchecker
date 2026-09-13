@@ -34,26 +34,17 @@ export async function notify(result, config, env = process.env, fetcher = fetch)
       throw new Error('Ongeldige statusopslag; geen melding verzonden.');
   }
   const stateBody = state => `${stateMarker}\nDeze issue bewaart de monitorstatus. Laat de inhoud staan.\n\n\`\`\`json\n${JSON.stringify(state, null, 2)}\n\`\`\`\n\nOntvang meldingen: Watch → Custom → Issues, en schakel e-mail in bij GitHub Notifications.\nStoppen: Actions → PS5 voorraad → Disable workflow.`;
-  if (!stateIssue) stateIssue = await api('/issues', 'POST', { title: '⚙️ PS5 voorraadchecker — statusopslag', body: stateBody(previous) });
+  if (!stateIssue) throw new Error('Statusissue ontbreekt. Herstel de bestaande statusopslag; er wordt geen niet-voorraadmelding aangemaakt.');
   const { next, events } = transition(previous, result);
-  if (env.TEST_NOTIFICATION === 'true') events.push({ type: 'test', key: `test:${env.GITHUB_RUN_ID}` });
   const runUrl = `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;
   for (const event of events) {
+    if (event.type !== 'stock') continue;
     const existing = issues.find(i => i.body?.startsWith(marker(event.key)));
-    if (event.type === 'recover') {
-      if (existing?.state === 'open') await api(`/issues/${existing.number}`, 'PATCH', { state: 'closed' });
-      continue;
-    }
     // Idempotency: an API timeout after issue creation cannot create duplicate alerts.
     if (existing) continue;
-    const text = event.type === 'stock' ? {
+    const text = {
       title: '🟢 PS5 Pro 2 TB mogelijk op voorraad!',
       body: `De productpagina toont een actieve koopknop.\n\n[Open het product](${config.url})\n\nPrijs op de pagina: ${result.price || 'onbekend'}.\nGecontroleerd: ${result.checkedAt}.\n\nEr is niets gereserveerd of besteld. Voorraad kan intussen veranderen.`
-    } : event.type === 'test' ? {
-      title: '🔔 Testmelding PS5 voorraadchecker', body: 'Dit is een test van de meldingen, geen voorraadmelding. Ontvang je deze ook per e-mail?'
-    } : {
-      title: '⚠️ PS5 voorraadcontrole lukt niet',
-      body: 'Drie opeenvolgende controles leverden geen betrouwbare voorraadstatus op. Controleer de laatste uitvoering. Bij herstel wordt deze issue automatisch gesloten.'
     };
     await api('/issues', 'POST', { title: text.title, body: `${marker(event.key)}\n${text.body}\n\n[Uitvoering bekijken](${runUrl})` });
   }

@@ -10,6 +10,7 @@ const button = (extra = '', label = 'Toevoegen aan wagentje') => `<button data-p
 const price = '<span class="js-actual-price-whole" aria-label="€899,99">899,99</span>';
 const out = '<div class="js-out-stock-wrpr">Momenteel niet beschikbaar</div>';
 const hero = content => `<style>.hide{display:none}</style><div class="productHero-component" data-product-code="${config.sku}"><div class="productHero-info"><h1>${config.name}</h1>${content}</div></div>`;
+const stateIssue = () => ({ number: 1, state: 'open', user: { login: 'github-actions[bot]' }, body: '<!-- ps5-watch:state:v1 -->\n```json\n' + JSON.stringify(initialState()) + '\n```' });
 
 test('Rendered DOM: products, hidden buttons, disabled buttons, conflicts, loading and recommendations', async t => {
   const browser = await chromium.launch();
@@ -47,8 +48,8 @@ test('One notification per stock episode; unknown does not rearm; three errors w
   assert.deepEqual(events, ['stock:1:stock','health:1:health','health:1:recover','stock:2:stock']);
 });
 
-test('GitHub integration: repeated checks and manually closed alerts do not duplicate; test message independent', async () => {
-  const db = [];
+test('Only stock creates notifications; errors, recovery and legacy test flags stay silent', async () => {
+  const db = [stateIssue()];
   const env = { GITHUB_TOKEN: 'test', GITHUB_REPOSITORY: 'example/checker', GITHUB_RUN_ID: '1' };
   const fetcher = async (url, options) => {
     const path = new URL(url).pathname;
@@ -65,6 +66,9 @@ test('GitHub integration: repeated checks and manually closed alerts do not dupl
     return { ok: true, json: async () => structuredClone(data) };
   };
   const result = { status: 'in_stock', checkedAt: '2026-09-13T12:00:00Z', price: '€899,99' };
+  for (const status of ['out_of_stock','unknown','unknown','unknown','unknown','out_of_stock'])
+    await notify({ status }, config, { ...env, TEST_NOTIFICATION: 'true' }, fetcher);
+  assert.equal(db.length, 1, 'No stock means no new issues, even after repeated errors');
   await notify(result, config, env, fetcher);
   db[1].state = 'closed';
   await notify(result, config, env, fetcher);
@@ -74,12 +78,12 @@ test('GitHub integration: repeated checks and manually closed alerts do not dupl
   assert.equal(db.length, 3);
   await notify(result, config, { ...env, TEST_NOTIFICATION: 'true' }, fetcher);
   await notify(result, config, { ...env, TEST_NOTIFICATION: 'true' }, fetcher);
-  assert.equal(db.length, 4);
-  assert.match(db[3].title, /Testmelding/);
+  assert.equal(db.length, 3);
+  assert.ok(db.slice(1).every(issue => issue.title.includes('op voorraad')));
 });
 
 test('Retry after state write fails does not duplicate already sent stock alert', async () => {
-  const db = [];
+  const db = [stateIssue()];
   let fail = true;
   const fetcher = async (url, options) => {
     const body = options.body && JSON.parse(options.body);

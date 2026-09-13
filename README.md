@@ -1,43 +1,32 @@
 # PS5 Pro voorraadchecker
 
-Controleert de Nederlandse PlayStation Direct-pagina ongeveer elke vijf minuten, zonder inloggen of bestellen. Bij een actieve koopknop verschijnt een GitHub Issue. Met GitHub-notificaties ontvang je die per e-mail. Geen betaalde AI-API of extra notificatiedienst nodig.
+Deze checker controleert ongeveer elke vijf minuten de Nederlandse PlayStation Direct-pagina. **Alleen bij beschikbare voorraad wordt een nieuwe melding verstuurd.** Je computer mag uitstaan.
 
-## Online zetten voor emielvanschaik-gif
+- Geen testmeldingen, foutmeldingen of herstelmeldingen.
+- Geen herhaalde melding zolang de voorraadstatus gelijk blijft. Na een waargenomen uitverkochte periode kan een nieuwe voorraadmelding volgen.
+- Geen aankopen, winkelwagenacties of Sony-aanmelding.
+- Je bent via GitHub geabonneerd op Issues; e-mailmeldingen zijn ingeschakeld in je GitHub-account.
 
-1. Maak op GitHub een **public** repository `ps5-voorraadchecker` aan, met Issues ingeschakeld.
-2. Upload de inhoud van deze map, inclusief `.github/workflows/voorraad.yml` en `pnpm-lock.yaml`. Upload **niet** `node_modules`. De workflow moet op de standaardbranch staan. Bij upload via de website moet je de verborgen map `.github` mogelijk apart aanmaken: Add file → Create new file → `.github/workflows/voorraad.yml`.
-3. Kies bovenaan de repository **Watch → Custom → Issues** (of All Activity).
-4. Schakel in [GitHub Notifications](https://github.com/settings/notifications) e-mail voor Watching in. Gebruik een geverifieerd e-mailadres.
-5. Ga naar **Actions → PS5 voorraad → Run workflow**, vink de testmelding aan en start. Controleer zowel het resultaat onder Actions als de testmelding in je inbox. Een groen vinkje betekent dat de taak draaide; lees ook de voorraadstatus in het overzicht.
-6. Vanaf nu start de planning op minuut 2, 7, 12, …, 57. Je eigen computer mag uitstaan.
+[Uitvoeringen bekijken](https://github.com/emielvanschaik-gif/ps5-voorraadchecker/actions/workflows/voorraad.yml) · [Voorraadmeldingen](https://github.com/emielvanschaik-gif/ps5-voorraadchecker/issues)
 
-Er is geen persoonlijk toegangstoken nodig: GitHub geeft de workflow automatisch een tijdelijk token met leesrechten op bestanden en schrijfrechten op Issues in deze repository.
+## Beheer
 
-## Wat krijg je?
+Stoppen: Actions → PS5 voorraad → menu met drie puntjes → Disable workflow.
+Handmatig controleren: Run workflow. Ook dan wordt alleen bij voorraad een melding gestuurd.
 
-- Eenmalig een statusissue voor interne opslag. Laat de inhoud en deze issue staan; verwijderen wist de meldingshistorie.
-- Een voorraadmelding zodra de hoofdproductknop beschikbaar wordt, ook als deze “Meld je aan om te kopen” zegt.
-- Geen herhaalde melding zolang de voorraadstatus hetzelfde blijft. Na een waargenomen uitverkochte periode kan een nieuwe melding volgen. Alleen een melding sluiten activeert geen nieuwe melding.
-- Een waarschuwing na drie opeenvolgende onzekere controles, bijvoorbeeld door blokkade, laden of een gewijzigde website. Deze issue sluit bij herstel.
-- Een optionele testmelding via Run workflow. Hiervoor moet de uitvoering tot de meldingsstap komen.
+Issue #1 bewaart de monitorstatus. Laat de issue en de inhoud staan. De bestaande testmelding is historisch; nieuwe testmeldingen zijn uitgeschakeld. Als de statusopslag ontbreekt, stopt de meldingsstap stil en moet de statusopslag worden hersteld.
 
-De melding is een indicatie, geen reservering. De checker raakt winkelwagen, Sony-account en checkout niet aan. Er worden geen accountcookies, persoonsgegevens of screenshots opgeslagen.
+Fouten zijn uitsluitend in de uitvoerlogs zichtbaar. De job mag mislukken zonder de workflow als mislukt te markeren, zodat gewone uitvoeringsfouten geen GitHub-foutmail veroorzaken. Een groen workflowvinkje is dus geen bewijs dat de voorraadcontrole gelukt is: lees daarvoor de job en samenvatting.
 
-## Gratis gebruik en beperkingen
+## Gratis en zonder eigen computer
 
-Gebruik een openbare repository en de standaard Ubuntu-runner. De workflow slaat geen Actions-artifacts op en gebruikt geen betaalde cloudbrowser. GitHub kan de planning vertragen of controles overslaan. Na 60 dagen zonder repositoryactiviteit schakelt GitHub geplande taken in openbare repositories uit; zet ze dan bewust opnieuw aan. Deze checker probeert die beperking niet te omzeilen.
+Deze openbare repository gebruikt een standaard GitHub Ubuntu-runner, zonder betaalde AI-API, cloudbrowser of extra notificatiedienst. GitHub kan controles vertragen of overslaan. Na 60 dagen zonder repositoryactiviteit schakelt GitHub geplande taken uit; je moet de workflow dan zelf weer activeren.
 
-De repository, uitvoerlogs en Issues zijn openbaar. Plaats er geen wachtwoorden of andere privégegevens in. E-mailbezorging hangt af van je GitHub-notificatie-instellingen: controleer de testmelding. Blokkeert Sony de GitHub-browser, dan meldt de checker na drie controles een probleem; werking vanuit GitHub moet na installatie live worden geverifieerd.
+De melding is een indicatie, geen reservering. De detector controleert productnummer, productnaam, zichtbare prijs en een actieve koopknop van het hoofdproduct. Aanbevolen accessoires worden genegeerd. Als de website wijzigt of blokkeert, blijft de checker stil.
 
-Bronnen: [GitHub kosten](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [planning](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [meldingen](https://docs.github.com/en/subscriptions-and-notifications/get-started/configuring-notifications).
+## Lokaal testen
 
-## Stoppen
-
-Actions → PS5 voorraad → menu met drie puntjes → Disable workflow.
-
-## Lokaal testen (optioneel)
-
-Installeer Node.js 24 en pnpm 11.19.0. In deze map:
+Met Node.js 24 en pnpm 11.19.0:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -46,6 +35,4 @@ pnpm test
 pnpm check --dry-run
 ```
 
-De dry-run print de gevonden status en schrijft `result.json`, zonder een bericht te versturen. `config.json` bevat URL, productnaam, productnummer en wachttijd. De detector verwacht de geverifieerde hoofdproductstructuur; bij afwijking geeft hij `unknown`.
-
-De tests controleren onder andere beschikbare accessoires naast een uitverkochte console, verborgen knoppen, verkeerde productnummers, ontbrekende prijs, tegenstrijdige signalen, dubbele meldingen en herhaling na een onderbroken GitHub-aanroep.
+De dry-run verstuurt niets. Configuratie staat in config.json. De tests controleren voorraadherkenning, dubbele meldingen en stilte bij fouten, herstel en oude testopties.
