@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { readProduct } from './detect.mjs';
 import { initialState, transition } from './state.mjs';
-import { notify } from './notify.mjs';
+import { notify, notificationDay } from './notify.mjs';
 
 const config = { sku: '1000050720-BX', name: 'PlayStation®5 Pro Console - 2TB', url: 'https://direct.playstation.com/nl-nl/buy-consoles/playstation5-pro-console-2-tb' };
 const button = (extra = '', label = 'Toevoegen aan wagentje') => `<button data-product-code="${config.sku}" aria-label="${label}" ${extra}>${label}</button>`;
@@ -75,10 +75,17 @@ test('Only stock creates notifications; errors, recovery and legacy test flags s
   assert.equal(db.length, 2);
   await notify({ status: 'out_of_stock' }, config, env, fetcher);
   await notify(result, config, env, fetcher);
-  assert.equal(db.length, 3);
+  assert.equal(db.length, 2, 'Restocking on the same day does not send another email');
   await notify(result, config, { ...env, TEST_NOTIFICATION: 'true' }, fetcher);
   await notify(result, config, { ...env, TEST_NOTIFICATION: 'true' }, fetcher);
+  assert.equal(db.length, 2);
+  await notify({ ...result, checkedAt: '2026-09-13T22:01:00Z' }, config, env, fetcher);
   assert.equal(db.length, 3);
+  await notify({ ...result, checkedAt: '2026-09-14T12:00:00Z' }, config, env, fetcher);
+  assert.equal(db.length, 3, 'Continuous stock sends at most once on the next local day');
+  db.push({ number: 4, user: { login: 'github-actions[bot]' }, body: '<!-- ps5-watch:stock:99 -->', created_at: '2026-09-15T08:00:00Z', title: 'op voorraad' });
+  await notify({ ...result, checkedAt: '2026-09-15T12:00:00Z' }, config, env, fetcher);
+  assert.equal(db.length, 4, 'Legacy stock notifications count toward the same daily limit');
   assert.ok(db.slice(1).every(issue => issue.title.includes('op voorraad')));
 });
 
@@ -94,7 +101,16 @@ test('Retry after state write fails does not duplicate already sent stock alert'
     return { ok: true, json: async () => structuredClone(db.at(-1)) };
   };
   const env = { GITHUB_TOKEN: 'test', GITHUB_REPOSITORY: 'example/checker' };
-  await assert.rejects(notify({ status: 'in_stock' }, config, env, fetcher), /network timeout/);
-  await notify({ status: 'in_stock' }, config, env, fetcher);
+  const result = { status: 'in_stock', checkedAt: '2026-09-13T12:00:00Z' };
+  await assert.rejects(notify(result, config, env, fetcher), /network timeout/);
+  await notify(result, config, env, fetcher);
   assert.equal(db.length, 2);
+});
+
+test('Daily limit follows Amsterdam midnight in summer and winter', () => {
+  assert.equal(notificationDay('2026-09-13T21:59:59Z'), '2026-09-13');
+  assert.equal(notificationDay('2026-09-13T22:00:00Z'), '2026-09-14');
+  assert.equal(notificationDay('2026-12-13T22:59:59Z'), '2026-12-13');
+  assert.equal(notificationDay('2026-12-13T23:00:00Z'), '2026-12-14');
+  assert.throws(() => notificationDay(undefined), /controletijdstip/);
 });

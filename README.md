@@ -3,7 +3,7 @@
 Deze checker controleert ongeveer elke vijf minuten de Nederlandse PlayStation Direct-pagina. **Alleen bij beschikbare voorraad wordt een nieuwe melding verstuurd.** Je computer mag uitstaan.
 
 - Geen testmeldingen, foutmeldingen of herstelmeldingen.
-- Geen herhaalde melding zolang de voorraadstatus gelijk blijft. Na een waargenomen uitverkochte periode kan een nieuwe voorraadmelding volgen.
+- Maximaal één voorraadmelding per kalenderdag (Europe/Amsterdam). Ook meerdere voorraadwisselingen op dezelfde dag geven geen extra mail. Als er de volgende dag nog voorraad is, volgt bij de eerste positieve controle van die dag weer één melding. De productlink blijft in elke melding staan.
 - Geen aankopen, winkelwagenacties of Sony-aanmelding.
 - Je bent via GitHub geabonneerd op Issues; e-mailmeldingen zijn ingeschakeld in je GitHub-account.
 

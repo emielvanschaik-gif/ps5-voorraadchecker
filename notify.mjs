@@ -2,6 +2,11 @@ import { initialState, transition } from './state.mjs';
 
 const stateMarker = '<!-- ps5-watch:state:v1 -->';
 const marker = key => `<!-- ps5-watch:${key} -->`;
+export function notificationDay(instant) {
+  const date = new Date(instant);
+  if (!Number.isFinite(date.getTime())) throw new Error('Geldig controletijdstip ontbreekt.');
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Amsterdam', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
 
 export async function notify(result, config, env = process.env, fetcher = fetch) {
   if (!env.GITHUB_TOKEN || !/^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_REPOSITORY || ''))
@@ -35,12 +40,15 @@ export async function notify(result, config, env = process.env, fetcher = fetch)
   }
   const stateBody = state => `${stateMarker}\nDeze issue bewaart de monitorstatus. Laat de inhoud staan.\n\n\`\`\`json\n${JSON.stringify(state, null, 2)}\n\`\`\`\n\nOntvang meldingen: Watch → Custom → Issues, en schakel e-mail in bij GitHub Notifications.\nStoppen: Actions → PS5 voorraad → Disable workflow.`;
   if (!stateIssue) throw new Error('Statusissue ontbreekt. Herstel de bestaande statusopslag; er wordt geen niet-voorraadmelding aangemaakt.');
-  const { next, events } = transition(previous, result);
+  const { next } = transition(previous, result);
+  const day = result.status === 'in_stock' ? notificationDay(result.checkedAt) : null;
+  const events = day ? [{ type: 'stock', key: `daily-stock:${day}` }] : [];
   const runUrl = `https://github.com/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`;
   for (const event of events) {
     if (event.type !== 'stock') continue;
-    const existing = issues.find(i => i.body?.startsWith(marker(event.key)));
-    // Idempotency: an API timeout after issue creation cannot create duplicate alerts.
+    const existing = issues.find(i => i.body?.startsWith(marker(event.key)) ||
+      (i.body?.startsWith('<!-- ps5-watch:stock:') && i.created_at && notificationDay(i.created_at) === day));
+    // One alert per Amsterdam calendar day, also across restocks, closed issues and API retries.
     if (existing) continue;
     const text = {
       title: '🟢 PS5 Pro 2 TB mogelijk op voorraad!',
