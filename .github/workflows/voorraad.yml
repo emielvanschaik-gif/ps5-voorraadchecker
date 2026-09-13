@@ -3,11 +3,6 @@ on:
   schedule:
     - cron: '2-57/5 * * * *'
   workflow_dispatch:
-    inputs:
-      test_notification:
-        description: 'Stuur ook een testmelding (geen voorraadmelding)'
-        type: boolean
-        default: false
 permissions:
   contents: read
   issues: write
@@ -17,6 +12,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Errors remain in the run log, without a failed-workflow email.
+    continue-on-error: true
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -32,4 +29,3 @@ jobs:
       - run: pnpm check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TEST_NOTIFICATION: ${{ inputs.test_notification == true && 'true' || 'false' }}
