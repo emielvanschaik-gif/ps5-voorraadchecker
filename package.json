@@ -1,0 +1,12 @@
+{
+  "name": "ps5-voorraadchecker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "scripts": {
+    "check": "node check.mjs",
+    "test": "node --test monitor.test.mjs"
+  },
+  "dependencies": { "playwright": "1.62.1" }
+}
